@@ -1,0 +1,48 @@
+[33mcommit 7b1baf77b096aa102dbd54ddc8b39e3465b68e97[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m)[m
+Author: CodeBreakerzzz <mr.deepesh01@icloud.com>
+Date:   Sat Apr 18 22:38:30 2026 +0530
+
+    added all files
+
+[33mcommit 39f2517ad575550691ef98821c7a7758ef932a84[m
+Author: genspark_dev <genspark_dev@genspark.ai>
+Date:   Sat Apr 18 14:22:19 2026 +0000
+
+    feat: dynamic navbar, navbar logout buttons, admin table pagination
+    
+    - Remove static nav links (Production Floor / Admin Dashboard) from topbar
+    - Add dynamic topbar-nav-area: updates on each page/auth state change
+      - Gate view: shows 🏭 Production Floor label
+      - Employee logged in: shows EMP-xxx live pill + Admin tab link + Sign Out btn
+      - Admin login: shows 🏭 link + Admin Login label
+      - Admin logged in: shows 🏭 link + 🔐 Admin pill + Logout btn
+    - Logout/Sign-out buttons moved from page headers into the navbar
+    - Admin records table: full pagination support
+      - Page size selector: 10 / 25 / 50 / 100 rows per page
+      - Smart page-window controls (prev, numbered pages, ellipsis, next)
+      - Count label shows range e.g. '1-25 of 30 records'
+      - CSV export uses all filteredRows (unaffected by current page)
+      - Sort resets to page 1; filters reset to page 1
+
+[33mcommit 9742550297098c78b6e9b50a1042f08d53ad0bab[m
+Author: genspark_dev <genspark_dev@genspark.ai>
+Date:   Sat Apr 18 14:10:35 2026 +0000
+
+    feat: AssemblyTrack production floor tracker
+    
+    - Employee ID gate (EMP-001 to EMP-999) with session persistence
+    - Live runs table with real-time elapsed timers (1s tick)
+    - Start Production modal: product, category, duration, station, tool autocomplete
+    - Stop modal with units, quality check, logbook notes
+    - Automatic delay detection + mandatory justification
+    - Admin dashboard: metrics, 3 charts (Chart.js), filterable table
+    - CSV export with UTF-8 BOM, respects active filters
+    - Dark/light theme toggle, toast notification system
+    - 30 seeded demo records on first load
+    - Pure static SPA served via Cloudflare Pages
+
+[33mcommit d304df9a70d3b48862e66880cbc45507457402f5[m
+Author: genspark_dev <genspark_dev@genspark.ai>
+Date:   Sat Apr 18 13:59:10 2026 +0000
+
+    Initial commit
