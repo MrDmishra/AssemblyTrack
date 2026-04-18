@@ -1,6 +1,6 @@
 /**
  * AssemblyTrack — app.js
- * Bootstrap, tab router, theme toggle, toast notifications.
+ * Bootstrap, tab router, dynamic navbar, theme toggle, toast notifications.
  */
 
 'use strict';
@@ -54,42 +54,110 @@ const App = (() => {
     if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
   }
 
+  // ── Dynamic Navbar ────────────────────────────────────────────────────────
+  // Called by employee.js and admin.js whenever auth state changes.
+
+  /**
+   * Render the navbar area for the Employee page.
+   * @param {string|null} empId - null = gate showing, string = logged in
+   */
+  function setNavEmployee(empId) {
+    const area = document.getElementById('topbar-nav-area');
+    if (!area) return;
+
+    if (!empId) {
+      // At the gate — show minimal label
+      area.innerHTML = `
+        <span class="navbar-context-label">
+          🏭 Production Floor
+        </span>`;
+    } else {
+      // Logged in — show emp ID pill + tab link to admin + sign out
+      area.innerHTML = `
+        <div class="navbar-emp-info">
+          <span class="navbar-emp-pill">
+            <span class="navbar-emp-dot"></span>
+            ${empId}
+          </span>
+          <a href="#admin" data-tab="admin" class="topbar-nav-link">📊 Admin</a>
+        </div>
+        <button class="btn btn-outline btn-sm" id="navbar-emp-signout" title="Sign out">
+          ⎋ Sign Out
+        </button>`;
+
+      document.getElementById('navbar-emp-signout')?.addEventListener('click', () => {
+        if (typeof EmployeePage !== 'undefined') EmployeePage.signOut();
+      });
+
+      // Re-wire tab link
+      area.querySelector('[data-tab]')?.addEventListener('click', e => {
+        e.preventDefault();
+        navigateTo(e.currentTarget.dataset.tab);
+      });
+    }
+  }
+
+  /**
+   * Render the navbar area for the Admin page.
+   * @param {boolean} loggedIn
+   */
+  function setNavAdmin(loggedIn) {
+    const area = document.getElementById('topbar-nav-area');
+    if (!area) return;
+
+    if (!loggedIn) {
+      area.innerHTML = `
+        <div class="navbar-emp-info">
+          <a href="#employee" data-tab="employee" class="topbar-nav-link">🏭 Production Floor</a>
+          <span class="navbar-context-label">📊 Admin Login</span>
+        </div>`;
+    } else {
+      area.innerHTML = `
+        <div class="navbar-emp-info">
+          <a href="#employee" data-tab="employee" class="topbar-nav-link">🏭 Production Floor</a>
+          <span class="navbar-emp-pill navbar-admin-pill">
+            🔐 Admin
+          </span>
+        </div>
+        <button class="btn btn-outline btn-sm" id="navbar-admin-logout" title="Logout">
+          ⎋ Logout
+        </button>`;
+
+      document.getElementById('navbar-admin-logout')?.addEventListener('click', () => {
+        if (typeof AdminPage !== 'undefined') AdminPage.logout();
+      });
+    }
+
+    // Re-wire tab links
+    area.querySelectorAll('[data-tab]').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        navigateTo(e.currentTarget.dataset.tab);
+      });
+    });
+  }
+
   // ── Tab Router ────────────────────────────────────────────────────────────
   let currentTab = null;
 
-  function initRouter() {
-    const tabs = document.querySelectorAll('[data-tab]');
+  function navigateTo(tabName) {
+    if (currentTab === tabName) return;
+    currentTab = tabName;
+
     const pages = document.querySelectorAll('[data-page]');
+    pages.forEach(p => p.classList.toggle('hidden', p.dataset.page !== tabName));
 
-    function navigateTo(tabName) {
-      if (currentTab === tabName) return;
-      currentTab = tabName;
-
-      // Update nav links
-      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
-
-      // Show / hide pages
-      pages.forEach(p => p.classList.toggle('hidden', p.dataset.page !== tabName));
-
-      // Init page module on first visit
-      if (tabName === 'employee' && typeof EmployeePage !== 'undefined') {
-        EmployeePage.init();
-      }
-      if (tabName === 'admin' && typeof AdminPage !== 'undefined') {
-        AdminPage.init();
-      }
-
-      // Update hash
-      history.replaceState(null, '', `#${tabName}`);
+    if (tabName === 'employee' && typeof EmployeePage !== 'undefined') {
+      EmployeePage.init();
+    }
+    if (tabName === 'admin' && typeof AdminPage !== 'undefined') {
+      AdminPage.init();
     }
 
-    tabs.forEach(t => {
-      t.addEventListener('click', e => {
-        e.preventDefault();
-        navigateTo(t.dataset.tab);
-      });
-    });
+    history.replaceState(null, '', `#${tabName}`);
+  }
 
+  function initRouter() {
     // Read initial hash
     const hash = location.hash.replace('#', '') || 'employee';
     navigateTo(hash);
@@ -97,14 +165,12 @@ const App = (() => {
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   function boot() {
-    // Seed demo data (only if empty)
     if (typeof Store !== 'undefined') Store.seedDemo();
-
     initTheme();
     initRouter();
   }
 
   document.addEventListener('DOMContentLoaded', boot);
 
-  return { toast };
+  return { toast, setNavEmployee, setNavAdmin, navigateTo };
 })();

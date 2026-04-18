@@ -41,12 +41,8 @@
       <span>AssemblyTrack</span>
     </a>
 
-    <nav>
-      <ul class="topbar-nav">
-        <li><a href="#employee" data-tab="employee">🏭 Production Floor</a></li>
-        <li><a href="#admin"    data-tab="admin">📊 Admin Dashboard</a></li>
-      </ul>
-    </nav>
+    <!-- Navbar context area: populated dynamically by app.js -->
+    <div class="topbar-nav-area" id="topbar-nav-area"></div>
 
     <div class="topbar-actions">
       <button class="theme-toggle" id="theme-toggle" title="Toggle theme">☀️</button>
@@ -105,9 +101,6 @@
           <div class="flex gap-2">
             <button class="btn btn-primary" id="start-run-btn">
               ▶ Start Production
-            </button>
-            <button class="btn btn-outline btn-sm" id="emp-logout-btn" title="Sign out">
-              ⎋ Sign Out
             </button>
           </div>
         </div>
@@ -185,9 +178,6 @@
           <div>
             <h1>📊 Admin Dashboard</h1>
             <p class="text-secondary text-sm mt-1">Production run analytics and records management</p>
-          </div>
-          <div class="flex gap-2">
-            <button class="btn btn-outline btn-sm" id="admin-logout-btn">⎋ Logout</button>
           </div>
         </div>
 
@@ -335,6 +325,22 @@
               </tbody>
             </table>
           </div>
+
+          <!-- Pagination -->
+          <div class="pagination-bar" id="pagination-bar">
+            <div class="pagination-info" id="pagination-info"></div>
+            <div class="pagination-controls" id="pagination-controls"></div>
+            <div class="pagination-size">
+              <label for="page-size-select">Rows per page</label>
+              <select id="page-size-select">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          </div>
+
         </div><!-- /records card -->
 
       </div><!-- /admin-dashboard -->

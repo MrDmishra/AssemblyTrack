@@ -24,10 +24,13 @@ const AdminPage = (() => {
   };
   let sortState     = { col: 'startedAt', dir: 'desc' };
   let filteredRows  = [];
+  let pageState     = { current: 1, size: 25 };
 
   const $ = id => document.getElementById(id);
 
   // ── Init ──────────────────────────────────────────────────────────────────
+  let filtersBound = false;
+
   function init() {
     if (sessionStorage.getItem('at_admin') === '1') {
       isLoggedIn = true;
@@ -41,6 +44,9 @@ const AdminPage = (() => {
   function showLogin() {
     $('admin-login').classList.remove('hidden');
     $('admin-dashboard').classList.add('hidden');
+
+    // Update navbar to show login state
+    App.setNavAdmin(false);
 
     const btn    = $('admin-login-btn');
     const userEl = $('admin-user');
@@ -72,12 +78,14 @@ const AdminPage = (() => {
   function logout() {
     sessionStorage.removeItem('at_admin');
     isLoggedIn = false;
+    filtersBound = false;
     destroyCharts();
     $('admin-login').classList.remove('hidden');
     $('admin-dashboard').classList.add('hidden');
     $('admin-user').value = '';
     $('admin-pass').value = '';
     $('admin-login-err').textContent = '';
+    App.setNavAdmin(false);
   }
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
@@ -85,15 +93,21 @@ const AdminPage = (() => {
     $('admin-login').classList.add('hidden');
     $('admin-dashboard').classList.remove('hidden');
 
-    $('admin-logout-btn').onclick = logout;
+    // Update navbar to show logged-in state + logout button
+    App.setNavAdmin(true);
 
-    initFilters();
+    if (!filtersBound) {
+      filtersBound = true;
+      initFilters();
+    }
     refresh();
   }
 
   function refresh() {
     const completed = Store.getCompletedRuns();
     filteredRows    = applyFilters(completed);
+    // Reset to page 1 when filters change
+    pageState.current = 1;
     renderMetrics(filteredRows);
     renderCharts(filteredRows);
     renderTable(filteredRows);
@@ -143,6 +157,13 @@ const AdminPage = (() => {
     });
 
     $('export-csv-btn')?.addEventListener('click', exportCSV);
+
+    // Page size selector
+    $('page-size-select')?.addEventListener('change', e => {
+      pageState.size    = parseInt(e.target.value, 10);
+      pageState.current = 1;
+      renderTable(filteredRows);
+    });
   }
 
   function applyFilters(runs) {
@@ -353,13 +374,30 @@ const AdminPage = (() => {
 
   // ── Records Table ─────────────────────────────────────────────────────────
   function renderTable(rows) {
-    const tbody  = $('admin-records-tbody');
+    const tbody   = $('admin-records-tbody');
     const countEl = $('admin-record-count');
     if (!tbody) return;
 
-    if (countEl) countEl.textContent = `${rows.length} record${rows.length !== 1 ? 's' : ''}`;
+    const total      = rows.length;
+    const pageSize   = pageState.size;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-    if (rows.length === 0) {
+    // Clamp current page
+    if (pageState.current > totalPages) pageState.current = totalPages;
+    if (pageState.current < 1)          pageState.current = 1;
+
+    const start    = (pageState.current - 1) * pageSize;
+    const end      = Math.min(start + pageSize, total);
+    const pageRows = rows.slice(start, end);
+
+    // Record count label
+    if (countEl) {
+      countEl.textContent = total === 0
+        ? '0 records'
+        : `${start + 1}–${end} of ${total} record${total !== 1 ? 's' : ''}`;
+    }
+
+    if (total === 0) {
       tbody.innerHTML = `
         <tr><td colspan="10">
           <div class="table-empty">
@@ -367,10 +405,11 @@ const AdminPage = (() => {
             <div class="table-empty-text">No records match your filters.</div>
           </div>
         </td></tr>`;
+      renderPagination(total, totalPages);
       return;
     }
 
-    tbody.innerHTML = rows.map(r => {
+    tbody.innerHTML = pageRows.map(r => {
       const qualBadge = {
         pass:    '<span class="badge badge-success">✅ Pass</span>',
         fail:    '<span class="badge badge-danger">❌ Fail</span>',
@@ -391,9 +430,6 @@ const AdminPage = (() => {
         ? `<span class="${r.isDelayed ? 'text-danger' : 'text-success'}">${r.isDelayed ? '+' : ''}${diff} min</span>`
         : '—';
 
-      const startDate = formatDate(r.startedAt);
-      const stopDate  = r.stoppedAt ? formatDate(r.stoppedAt) : '—';
-
       return `
         <tr>
           <td><span class="font-mono text-sm font-bold">${r.id}</span></td>
@@ -411,7 +447,7 @@ const AdminPage = (() => {
           <td class="text-right font-mono">${r.expectedMinutes}</td>
           <td class="text-right">${r.units != null ? r.units : '—'}</td>
           <td>${qualBadge}</td>
-          <td class="text-xs text-muted">${startDate}</td>
+          <td class="text-xs text-muted">${formatDate(r.startedAt)}</td>
         </tr>`;
     }).join('');
 
@@ -429,9 +465,73 @@ const AdminPage = (() => {
           t.classList.remove('sort-asc', 'sort-desc');
         });
         th.classList.add(sortState.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+        pageState.current = 1;
         refresh();
       };
     });
+
+    renderPagination(total, totalPages);
+  }
+
+  // ── Pagination ────────────────────────────────────────────────────────────
+  function renderPagination(total, totalPages) {
+    const infoEl     = $('pagination-info');
+    const controlsEl = $('pagination-controls');
+    const barEl      = $('pagination-bar');
+
+    if (!controlsEl) return;
+
+    // Hide bar when nothing to paginate
+    if (barEl) barEl.classList.toggle('hidden', total === 0);
+    if (total === 0) return;
+
+    const cur = pageState.current;
+
+    // Build page buttons — show window of 5 around current
+    const btns = [];
+
+    // Prev
+    btns.push(`<button class="page-btn" data-page="${cur - 1}" ${cur === 1 ? 'disabled' : ''} title="Previous page">‹</button>`);
+
+    // First page
+    if (cur > 3) {
+      btns.push(`<button class="page-btn" data-page="1">1</button>`);
+      if (cur > 4) btns.push(`<span class="page-ellipsis">…</span>`);
+    }
+
+    // Window
+    for (let p = Math.max(1, cur - 2); p <= Math.min(totalPages, cur + 2); p++) {
+      btns.push(`<button class="page-btn ${p === cur ? 'active' : ''}" data-page="${p}">${p}</button>`);
+    }
+
+    // Last page
+    if (cur < totalPages - 2) {
+      if (cur < totalPages - 3) btns.push(`<span class="page-ellipsis">…</span>`);
+      btns.push(`<button class="page-btn" data-page="${totalPages}">${totalPages}</button>`);
+    }
+
+    // Next
+    btns.push(`<button class="page-btn" data-page="${cur + 1}" ${cur === totalPages ? 'disabled' : ''} title="Next page">›</button>`);
+
+    controlsEl.innerHTML = btns.join('');
+
+    // Wire clicks
+    controlsEl.querySelectorAll('.page-btn[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = parseInt(btn.dataset.page, 10);
+        if (p < 1 || p > totalPages || p === pageState.current) return;
+        pageState.current = p;
+        renderTable(filteredRows);
+        // Scroll table into view smoothly
+        document.getElementById('admin-records-table')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    });
+
+    // Sync page-size select value (in case state differs from DOM)
+    const sel = $('page-size-select');
+    if (sel && sel.value !== String(pageState.size)) {
+      sel.value = String(pageState.size);
+    }
   }
 
   // ── CSV Export ────────────────────────────────────────────────────────────
@@ -468,5 +568,5 @@ const AdminPage = (() => {
     return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
   }
 
-  return { init };
+  return { init, logout };
 })();

@@ -38,6 +38,9 @@ const EmployeePage = (() => {
 
     if (!gate) return;
 
+    // Render gate navbar
+    App.setNavEmployee(null);
+
     // Check session
     const saved = sessionStorage.getItem('at_emp_id');
     if (saved && /^EMP-\d{3}$/.test(saved)) {
@@ -94,19 +97,8 @@ const EmployeePage = (() => {
     if (nameEl)    nameEl.textContent   = `Employee ${num.replace(/^0+/, '') || '0'}`;
     if (idEl)      idEl.textContent     = currentEmpId;
 
-    // Logout
-    const logoutBtn = $('emp-logout-btn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        sessionStorage.removeItem('at_emp_id');
-        currentEmpId = null;
-        clearInterval(timerInterval);
-        $('emp-gate').classList.remove('hidden');
-        $('emp-dashboard').classList.add('hidden');
-        $('gate-emp-input').value = '';
-        $('gate-error').textContent = '';
-      });
-    }
+    // Update navbar with logged-in employee
+    App.setNavEmployee(currentEmpId);
 
     // Start button
     const startBtn = $('start-run-btn');
@@ -478,24 +470,42 @@ const EmployeePage = (() => {
     return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
   }
 
-  // ── Public API ─────────────────────────────────────────────────────────────
-  function init() {
-    // Wire up modal close buttons
-    $('start-modal-overlay')?.addEventListener('click', e => {
-      if (e.target === $('start-modal-overlay')) closeStartModal();
-    });
-    $('start-modal-close')?.addEventListener('click', closeStartModal);
-    $('start-modal-cancel')?.addEventListener('click', closeStartModal);
-    $('start-modal-submit')?.addEventListener('click', submitStartModal);
+  // ── Sign Out (called by navbar button) ────────────────────────────────────
+  function signOut() {
+    sessionStorage.removeItem('at_emp_id');
+    currentEmpId = null;
+    clearInterval(timerInterval);
+    $('emp-gate').classList.remove('hidden');
+    $('emp-dashboard').classList.add('hidden');
+    $('gate-emp-input').value = '';
+    $('gate-error').textContent = '';
+    // Re-init gate so navbar resets to gate state
+    initGate();
+  }
 
-    $('stop-modal-overlay')?.addEventListener('click', e => {
-      if (e.target === $('stop-modal-overlay')) closeStopModal();
-    });
-    $('stop-modal-close')?.addEventListener('click', closeStopModal);
-    $('stop-modal-cancel')?.addEventListener('click', closeStopModal);
+  // ── Public API ─────────────────────────────────────────────────────────────
+  let modalsBound = false;
+
+  function init() {
+    // Wire up modal close buttons (only once)
+    if (!modalsBound) {
+      modalsBound = true;
+      $('start-modal-overlay')?.addEventListener('click', e => {
+        if (e.target === $('start-modal-overlay')) closeStartModal();
+      });
+      $('start-modal-close')?.addEventListener('click', closeStartModal);
+      $('start-modal-cancel')?.addEventListener('click', closeStartModal);
+      $('start-modal-submit')?.addEventListener('click', submitStartModal);
+
+      $('stop-modal-overlay')?.addEventListener('click', e => {
+        if (e.target === $('stop-modal-overlay')) closeStopModal();
+      });
+      $('stop-modal-close')?.addEventListener('click', closeStopModal);
+      $('stop-modal-cancel')?.addEventListener('click', closeStopModal);
+    }
 
     initGate();
   }
 
-  return { init };
+  return { init, signOut };
 })();
